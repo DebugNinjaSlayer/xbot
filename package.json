@@ -1,0 +1,23 @@
+{
+  "name": "xbot",
+  "version": "1.0.0",
+  "author": "DebugNinjaSlayer <8620373+DebugNinjaSlayer@users.noreply.github.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.14.1",
+    "nodemon": "^3.1.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "telegraf": "^4.16.3",
+    "twitter-api-v2": "^1.22.0"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts"
+  }
+}
