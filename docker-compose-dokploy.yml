@@ -1,0 +1,20 @@
+services:
+  xbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - TWITTER_APP_KEY=${TWITTER_APP_KEY}
+      - TWITTER_APP_SECRET=${TWITTER_APP_SECRET}
+      - TWITTER_ACCESS_TOKEN=${TWITTER_ACCESS_TOKEN}
+      - TWITTER_ACCESS_SECRET=${TWITTER_ACCESS_SECRET}
+      - CALLBACK_URL=${CALLBACK_URL}
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true

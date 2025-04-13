@@ -1,0 +1,16 @@
+services:
+  xbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      # Need to be set for the first setup, used to get the access token and secret
+      - BOT_TOKEN=
+      - TWITTER_APP_KEY=
+      - TWITTER_APP_SECRET=
+      - CALLBACK_URL=
+      # After the first setup, set the access token and secret to be able to tweet
+      - TWITTER_ACCESS_TOKEN=
+      - TWITTER_ACCESS_SECRET=
