@@ -20,11 +20,6 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 
-# 设置环境变量 (如果需要，例如 .env 文件中的变量)
-# 推荐使用 Docker Compose 或 Kubernetes Secrets 来管理敏感信息
-# ENV NODE_ENV=production
-# ENV MY_API_KEY=your_api_key
-
 EXPOSE 3000
 
 CMD [ "node", "dist/index.js" ]

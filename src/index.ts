@@ -6,7 +6,16 @@ import { tweetImages, tweetText } from "./x";
 const bot = new Telegraf<Context>(process.env.BOT_TOKEN as string);
 
 bot.on(message("photo"), async (ctx) => {
+  const text = ctx.message.caption;
+  if (text === "/start") {
+    await ctx.reply("Hello! I'm a bot that can tweet images and text.");
+    return;
+  }
   let imageId = ctx.message.photo.pop()?.file_id;
+  if (!imageId) {
+    await ctx.reply("No image found");
+    return;
+  }
   let imageUrl = await ctx.telegram.getFileLink(imageId as string);
 
   await tweetImages([imageUrl], ctx.message.caption ?? "");
