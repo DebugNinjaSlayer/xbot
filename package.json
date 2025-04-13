@@ -4,6 +4,8 @@
   "author": "DebugNinjaSlayer <8620373+DebugNinjaSlayer@users.noreply.github.com>",
   "license": "MIT",
   "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/express-session": "^1.18.1",
     "@types/node": "^22.14.1",
     "nodemon": "^3.1.9",
     "ts-node": "^10.9.2",
@@ -11,6 +13,8 @@
   },
   "dependencies": {
     "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "express-session": "^1.18.1",
     "telegraf": "^4.16.3",
     "twitter-api-v2": "^1.22.0"
   },
