@@ -1,18 +1,17 @@
 import { Context, Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
 import app from "./routes";
-import { tweetText } from "./x";
+import { tweetImages, tweetText } from "./x";
 
 const bot = new Telegraf<Context>(process.env.BOT_TOKEN as string);
 
 bot.on(message("photo"), async (ctx) => {
   let imageId = ctx.message.photo.pop()?.file_id;
-  console.log(imageId);
   let imageUrl = await ctx.telegram.getFileLink(imageId as string);
-  console.log(imageUrl.href);
-  console.log(ctx.message.caption);
 
-  await ctx.reply("received photo");
+  await tweetImages([imageUrl], ctx.message.caption ?? "");
+
+  await ctx.reply("Tweeted image with cation");
 });
 
 bot.on(message("text"), async (ctx) => {
