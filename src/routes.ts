@@ -66,6 +66,9 @@ app.get("/callback", (req: Request, res: Response) => {
       console.log(accessSecret);
     })
     .catch(() => res.status(403).send("Invalid verifier or access tokens!"));
+  res.send(
+    "Check your console for the access token and secret, set them to Environment Variables and restart the server"
+  );
 });
 
 export default app;
