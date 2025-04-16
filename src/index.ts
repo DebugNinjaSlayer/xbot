@@ -6,11 +6,6 @@ import { tweetImages, tweetText } from "./x";
 const bot = new Telegraf<Context>(process.env.BOT_TOKEN as string);
 
 bot.on(message("photo"), async (ctx) => {
-  const text = ctx.message.caption;
-  if (text === "/start") {
-    await ctx.reply("Hello! I'm a bot that can tweet images and text.");
-    return;
-  }
   let imageId = ctx.message.photo.pop()?.file_id;
   if (!imageId) {
     await ctx.reply("No image found");
@@ -30,6 +25,10 @@ bot.on(message("photo"), async (ctx) => {
 
 bot.on(message("text"), async (ctx) => {
   const msg = ctx.message.text;
+  if (msg === "/start") {
+    await ctx.reply("Hello! I'm a bot that can tweet images and text.");
+    return;
+  }
   try {
     await tweetText(msg);
     await ctx.reply(`Tweeted text: ${msg}`);
