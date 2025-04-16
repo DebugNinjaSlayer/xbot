@@ -1,5 +1,6 @@
 services:
   xbot:
+    image: xbot-dev-image
     build:
       context: .
       dockerfile: Dockerfile

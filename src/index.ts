@@ -20,13 +20,23 @@ bot.on(message("photo"), async (ctx) => {
 
   await tweetImages([imageUrl], ctx.message.caption ?? "");
 
-  await ctx.reply("Tweeted image with cation");
+  try {
+    await ctx.reply("Tweeted image with caption");
+  } catch (error) {
+    console.error(error);
+    await ctx.reply("Error tweeting image");
+  }
 });
 
 bot.on(message("text"), async (ctx) => {
   const msg = ctx.message.text;
-  await tweetText(msg);
-  await ctx.reply(`Tweeted text: ${msg}`);
+  try {
+    await tweetText(msg);
+    await ctx.reply(`Tweeted text: ${msg}`);
+  } catch (error) {
+    console.error(error);
+    await ctx.reply("Error tweeting text");
+  }
 });
 
 bot.launch();

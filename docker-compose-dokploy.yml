@@ -2,7 +2,7 @@ services:
   xbot:
     image: ghcr.io/debugninjaslayer/xbot:latest
     ports:
-      - "13000:3000"
+      - "${PORT:-13000}:3000"
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
       - TWITTER_APP_KEY=${TWITTER_APP_KEY}
