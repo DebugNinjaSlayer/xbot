@@ -39,8 +39,9 @@ export async function getRandomKv() {
     return null;
   }
   const firstKey = keys.result[0];
-  const value = await getKv(firstKey.name);
-  return { key: firstKey.name, value: value };
+  const kvValue = await(await getKv(firstKey.name)).text();
+  const json = JSON.parse(kvValue);
+  return { key: firstKey.name, value: json.value, metadata: json.metadata };
 }
 
 export async function deleteKv(key: string) {

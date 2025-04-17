@@ -1,7 +1,11 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import { Context, Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
+import { getRandomKv, putKv } from "./kv";
 import app from "./routes";
-import { tweetImages, tweetText } from "./x";
+import { tweetText } from "./x";
 
 const bot = new Telegraf<Context>(process.env.BOT_TOKEN as string);
 
@@ -12,14 +16,19 @@ bot.on(message("photo"), async (ctx) => {
     return;
   }
   let imageUrl = await ctx.telegram.getFileLink(imageId as string);
-
-  await tweetImages([imageUrl], ctx.message.caption ?? "");
-
+  const caption = ctx.message.caption ?? "";
+  const messageId = ctx.message.message_id;
+  const chatId = ctx.chat.id;
   try {
-    await ctx.reply("Tweeted image with caption");
+    await putKv(
+      `${chatId}-${messageId}`,
+      JSON.stringify({ imageUrl, caption }),
+      JSON.stringify({ chatId, messageId })
+    );
+    await ctx.reply("Saved to kv");
   } catch (error) {
     console.error(error);
-    await ctx.reply("Error tweeting image");
+    await ctx.reply("Error saving to kv");
   }
 });
 
