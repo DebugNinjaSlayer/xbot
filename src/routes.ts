@@ -1,4 +1,3 @@
-import dotenv from "dotenv";
 import express, { Request, Response } from "express";
 import session from "express-session";
 import TwitterApi from "twitter-api-v2";
@@ -9,8 +8,6 @@ declare module "express-session" {
     oauth_token_secret?: string;
   }
 }
-
-dotenv.config();
 
 const app = express();
 app.set("trust proxy", 1);

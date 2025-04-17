@@ -1,10 +1,7 @@
 import axios from "axios";
-import dotenv from "dotenv";
 import { EUploadMimeType, SendTweetV2Params, TwitterApi } from "twitter-api-v2";
 
 import { loadEsm } from "load-esm";
-
-dotenv.config();
 
 const client = new TwitterApi({
   appKey: process.env.TWITTER_APP_KEY as string,
