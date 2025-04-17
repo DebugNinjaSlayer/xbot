@@ -12,3 +12,9 @@ services:
       # After the first setup, set the access token and secret to be able to tweet
       - TWITTER_ACCESS_TOKEN=
       - TWITTER_ACCESS_SECRET=
+      - TWITTER_COMMUNITY_ID=
+      - CLOUDFLARE_ACCOUNT_ID=
+      - CLOUDFLARE_API_KEY=
+      - CLOUDFLARE_ZONE_ID=
+      - CLOUDFLARE_KV_NAMESPACE_ID=
+      - CRON_SCHEDULE=
