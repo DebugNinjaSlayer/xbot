@@ -18,12 +18,19 @@ bot.on(message("photo"), async (ctx) => {
   }
   let imageUrl = await ctx.telegram.getFileLink(imageId as string);
   const caption = ctx.message.caption ?? "";
+  const communityId = caption.startsWith("@")
+    ? process.env.TWITTER_COMMUNITY_ID
+    : undefined;
   const messageId = ctx.message.message_id;
   const chatId = ctx.chat.id;
   try {
     await putKv(
       `${chatId}-${messageId}`,
-      JSON.stringify({ imageUrl, caption }),
+      JSON.stringify({
+        imageUrl,
+        caption: caption.startsWith("@") ? caption.split("@")[1] : caption,
+        communityId,
+      }),
       JSON.stringify({ chatId, messageId })
     );
     await ctx.reply("Saved to kv");
@@ -67,8 +74,8 @@ cron.schedule(
           return;
         }
         const { value, key } = kv;
-        const { imageUrl, caption } = JSON.parse(value);
-        await tweetImages([new URL(imageUrl)], caption);
+        const { imageUrl, caption, communityId } = JSON.parse(value);
+        await tweetImages([new URL(imageUrl)], caption, communityId);
         await deleteKv(key);
         console.log(`Tweeted and deleted kv: ${caption}`);
       } catch (error) {

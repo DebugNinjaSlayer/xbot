@@ -23,15 +23,23 @@ export async function getAuthUrl(client: TwitterApi, callbackUrl?: string) {
   return authLink;
 }
 
-export async function tweetImages(imageUrls: URL[], tweetText: string) {
-  await uploadImagesAndTweet(imageUrls, tweetText);
+export async function tweetImages(
+  imageUrls: URL[],
+  tweetText: string,
+  communityId?: string
+) {
+  await uploadImagesAndTweet(imageUrls, tweetText, communityId);
 }
 
 async function tweet(payload: SendTweetV2Params) {
   return await client.v2.tweet(payload);
 }
 
-async function uploadImagesAndTweet(imageUrls: URL[], tweetText: string) {
+async function uploadImagesAndTweet(
+  imageUrls: URL[],
+  tweetText: string,
+  communityId?: string
+) {
   try {
     console.log(`Fetching image from: ${imageUrls}`);
 
@@ -45,6 +53,7 @@ async function uploadImagesAndTweet(imageUrls: URL[], tweetText: string) {
     const newTweet = await tweet({
       media: { media_ids: convertToStringArray(mediaIds) },
       text: tweetText,
+      community_id: communityId,
     });
     console.log("Tweet posted successfully (V1):", newTweet.data.id);
 
