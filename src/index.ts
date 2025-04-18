@@ -11,12 +11,21 @@ import { tweetImages, tweetText } from "./x";
 const bot = new Telegraf<Context>(process.env.BOT_TOKEN as string);
 
 bot.on(message("photo"), async (ctx) => {
-  let imageId = ctx.message.photo.pop()?.file_id;
-  if (!imageId) {
-    await ctx.reply("No image found");
+  const imageUrls = [];
+  if (ctx.message.photo.length > 4) {
+    await ctx.reply("Too many photos, max 4");
     return;
   }
-  let imageUrl = await ctx.telegram.getFileLink(imageId as string);
+  for (const photo of ctx.message.photo) {
+    let imageId = photo.file_id;
+    if (!imageId) {
+      await ctx.reply("No image found");
+      return;
+    }
+    let imageUrl = await ctx.telegram.getFileLink(imageId as string);
+    imageUrls.push(imageUrl);
+  }
+
   const caption = ctx.message.caption ?? "";
   const communityId = caption.startsWith("@")
     ? process.env.TWITTER_COMMUNITY_ID
@@ -27,7 +36,7 @@ bot.on(message("photo"), async (ctx) => {
     await putKv(
       `${chatId}-${messageId}`,
       JSON.stringify({
-        imageUrl,
+        imageUrls,
         caption: caption.startsWith("@") ? caption.split("@")[1] : caption,
         communityId,
       }),
@@ -74,8 +83,17 @@ cron.schedule(
           return;
         }
         const { value, key } = kv;
-        const { imageUrl, caption, communityId } = JSON.parse(value);
-        await tweetImages([new URL(imageUrl)], caption, communityId);
+        // TODO: imageUrls takes priority over imageUrl, remove imageUrl after migration
+        const { imageUrl, imageUrls, caption, communityId } = JSON.parse(value);
+        if (imageUrls && imageUrls.length > 0) {
+          await tweetImages(
+            imageUrls.map((url: string) => new URL(url)),
+            caption,
+            communityId
+          );
+        } else {
+          await tweetImages([new URL(imageUrl)], caption, communityId);
+        }
         await deleteKv(key);
         console.log(`Tweeted and deleted kv: ${caption}`);
       } catch (error) {
