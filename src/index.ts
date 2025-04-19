@@ -74,10 +74,11 @@ app.listen(3000, () => {
 cron.schedule(
   process.env.CRON_SCHEDULE ?? "0 8-22/2 * * *",
   async () => {
-    const delay = Math.floor(Math.random() * 1000 * 60 * 90) + 1;
+    const delay = Math.floor(Math.random() * 1000 * 60 * 90) + 1; // 1-90 minutes
+    let kv: { value: string; key: string } | null = null;
     lt.setTimeout(async function () {
       try {
-        const kv = await getRandomKv();
+        kv = await getRandomKv();
         if (!kv) {
           console.log("No kv found");
           return;
@@ -94,10 +95,31 @@ cron.schedule(
         } else {
           await tweetImages([new URL(imageUrl)], caption, communityId);
         }
-        await deleteKv(key);
         console.log(`Tweeted and deleted kv: ${caption}`);
       } catch (error) {
         console.error(error);
+        if (kv) {
+          const { chatId, messageId } = parseKey(kv.key);
+          if (chatId && messageId) {
+            await bot.telegram.sendMessage(
+              chatId,
+              `failed with key ${kv.key}, will delete it in case of blocking other tasks`,
+              {
+                reply_parameters: {
+                  message_id: messageId,
+                },
+              }
+            );
+          }
+        }
+      } finally {
+        if (kv) {
+          try {
+            await deleteKv(kv.key);
+          } catch (error) {
+            console.error(error);
+          }
+        }
       }
     }, delay);
     console.log(
@@ -114,3 +136,12 @@ cron.schedule(
 // Enable graceful stop
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
+
+function parseKey(key: string): { chatId: number; messageId: number } {
+  const parts = key.split("-");
+
+  const chatId = parseInt(parts[0], 10);
+  const messageId = parseInt(parts[1], 10);
+
+  return { chatId: chatId, messageId: messageId };
+}
