@@ -16,7 +16,7 @@ export async function putKv(key: string, value: string, metadata: string) {
   );
 }
 
-async function getKv(key: string) {
+export async function getKv(key: string) {
   const value = await client.kv.namespaces.values.get(
     process.env.CLOUDFLARE_KV_NAMESPACE_ID as string,
     key,
@@ -24,7 +24,19 @@ async function getKv(key: string) {
       account_id: process.env.CLOUDFLARE_ACCOUNT_ID as string,
     }
   );
-  return value;
+  const kvValue = await value.text();
+  return JSON.parse(kvValue);
+}
+
+export async function listKvWithPrefix(prefix: string) {
+  const keys = await client.kv.namespaces.keys.list(
+    process.env.CLOUDFLARE_KV_NAMESPACE_ID as string,
+    {
+      account_id: process.env.CLOUDFLARE_ACCOUNT_ID as string,
+      prefix,
+    }
+  );
+  return keys.result.map((key) => key.name);
 }
 
 export async function getRandomKv() {
@@ -39,9 +51,8 @@ export async function getRandomKv() {
     return null;
   }
   const firstKey = keys.result[0];
-  const kvValue = await(await getKv(firstKey.name)).text();
-  const json = JSON.parse(kvValue);
-  return { key: firstKey.name, value: json.value, metadata: json.metadata };
+  const kv = await getKv(firstKey.name);
+  return { key: firstKey.name, value: kv.value, metadata: kv.metadata };
 }
 
 export async function deleteKv(key: string) {
@@ -52,4 +63,26 @@ export async function deleteKv(key: string) {
       account_id: process.env.CLOUDFLARE_ACCOUNT_ID as string,
     }
   );
+}
+
+export function parseKey(key: string): {
+  chatId: string;
+  messageId: string;
+  groupId?: string;
+} {
+  const parts = key.split("-");
+  if (parts.length === 2) {
+    return {
+      chatId: parts[0],
+      messageId: parts[1],
+    };
+  }
+  if (parts.length === 3) {
+    return {
+      chatId: parts[0],
+      groupId: parts[1],
+      messageId: parts[2],
+    };
+  }
+  throw new Error("Invalid key");
 }

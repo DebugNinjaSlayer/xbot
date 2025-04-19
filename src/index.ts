@@ -5,27 +5,34 @@ import * as lt from "long-timeout";
 import cron from "node-cron";
 import { Context, Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
-import { deleteKv, getRandomKv, putKv } from "./kv";
+import {
+  deleteKv,
+  getKv,
+  getRandomKv,
+  listKvWithPrefix as listKeysWithPrefix,
+  parseKey,
+  putKv,
+} from "./kv";
 import app from "./routes";
 import { tweetImages, tweetText } from "./x";
 const bot = new Telegraf<Context>(process.env.BOT_TOKEN as string);
 
 bot.on(message("photo"), async (ctx) => {
-  const imageUrls = [];
-  if (ctx.message.photo.length > 4) {
-    await ctx.reply("Too many photos, max 4");
-    return;
-  }
-  for (const photo of ctx.message.photo) {
-    let imageId = photo.file_id;
-    if (!imageId) {
-      await ctx.reply("No image found");
-      return;
-    }
-    let imageUrl = await ctx.telegram.getFileLink(imageId as string);
-    imageUrls.push(imageUrl);
+  const groupId = ctx.message.media_group_id;
+  let key: string;
+  if (groupId) {
+    key = `${ctx.chat.id}-${groupId}-${ctx.message.message_id}`;
+  } else {
+    key = `${ctx.chat.id}-${ctx.message.message_id}`;
   }
 
+  const photo = ctx.message.photo[ctx.message.photo.length - 1];
+  let imageId = photo.file_id;
+  if (!imageId) {
+    await ctx.reply("No image found");
+    return;
+  }
+  let imageUrl = await ctx.telegram.getFileLink(imageId as string);
   const caption = ctx.message.caption ?? "";
   const communityId = caption.startsWith("@")
     ? process.env.TWITTER_COMMUNITY_ID
@@ -34,15 +41,19 @@ bot.on(message("photo"), async (ctx) => {
   const chatId = ctx.chat.id;
   try {
     await putKv(
-      `${chatId}-${messageId}`,
+      key,
       JSON.stringify({
-        imageUrls,
+        imageUrl,
         caption: caption.startsWith("@") ? caption.split("@")[1] : caption,
         communityId,
       }),
-      JSON.stringify({ chatId, messageId })
+      JSON.stringify({ chatId, messageId, groupId })
     );
-    await ctx.reply("Saved to kv");
+    if (groupId) {
+      await ctx.reply(`Saved to kv, with groupId ${groupId}`);
+    } else {
+      await ctx.reply("Saved to kv");
+    }
   } catch (error) {
     console.error(error);
     await ctx.reply("Error saving to kv");
@@ -75,49 +86,68 @@ cron.schedule(
   process.env.CRON_SCHEDULE ?? "0 8-22/2 * * *",
   async () => {
     const delay = Math.floor(Math.random() * 1000 * 60 * 90) + 1; // 1-90 minutes
-    let kv: { value: string; key: string } | null = null;
+    const kvNeedToBeCleaned: string[] = [];
     lt.setTimeout(async function () {
       try {
-        kv = await getRandomKv();
+        const kv = await getRandomKv();
         if (!kv) {
           console.log("No kv found");
           return;
         }
         const { value, key } = kv;
-        // TODO: imageUrls takes priority over imageUrl, remove imageUrl after migration
-        const { imageUrl, imageUrls, caption, communityId } = JSON.parse(value);
-        if (imageUrls && imageUrls.length > 0) {
-          await tweetImages(
-            imageUrls.map((url: string) => new URL(url)),
-            caption,
-            communityId
+        // check if key match ${ctx.chat.id}-${groupId}-${ctx.message.message_id} or ${ctx.chat.id}-${ctx.message.message_id}
+        const { chatId, groupId } = parseKey(key);
+        if (groupId) {
+          const keys = await listKeysWithPrefix(`${chatId}-${groupId}`);
+          kvNeedToBeCleaned.push(...keys);
+          const imageUrls = [];
+          let finalCaption = "";
+          let finalCommunityId: string | undefined;
+          for (const key of keys) {
+            const kv = await getKv(key);
+            const { imageUrl, caption, communityId } = JSON.parse(kv.value);
+            imageUrls.push(new URL(imageUrl));
+            if (!finalCaption) {
+              finalCaption = caption;
+            }
+            if (!finalCommunityId) {
+              finalCommunityId = communityId;
+            }
+          }
+          await tweetImages(imageUrls, finalCaption, finalCommunityId);
+          console.log(
+            `Tweeted and deleted kv with multiple images: ${finalCaption}`
           );
         } else {
+          kvNeedToBeCleaned.push(key);
+          const { imageUrl, caption, communityId } = JSON.parse(value);
           await tweetImages([new URL(imageUrl)], caption, communityId);
+          console.log(`Tweeted and deleted kv: ${caption}`);
         }
-        console.log(`Tweeted and deleted kv: ${caption}`);
       } catch (error) {
         console.error(error);
-        if (kv) {
-          const { chatId, messageId } = parseKey(kv.key);
+        if (kvNeedToBeCleaned.length > 0) {
+          const { chatId, messageId } = parseKey(kvNeedToBeCleaned[0]);
           if (chatId && messageId) {
             await bot.telegram.sendMessage(
               chatId,
-              `failed with key ${kv.key}, will delete it in case of blocking other tasks`,
+              `failed with key ${kvNeedToBeCleaned[0]}, will delete it in case of blocking other tasks`,
               {
                 reply_parameters: {
-                  message_id: messageId,
+                  message_id: parseInt(messageId, 10),
                 },
               }
             );
           }
         }
       } finally {
-        if (kv) {
-          try {
-            await deleteKv(kv.key);
-          } catch (error) {
-            console.error(error);
+        if (kvNeedToBeCleaned.length > 0) {
+          for (const key of kvNeedToBeCleaned) {
+            try {
+              await deleteKv(key);
+            } catch (error) {
+              console.error(error);
+            }
           }
         }
       }
@@ -136,12 +166,3 @@ cron.schedule(
 // Enable graceful stop
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
-
-function parseKey(key: string): { chatId: number; messageId: number } {
-  const parts = key.split("-");
-
-  const chatId = parseInt(parts[0], 10);
-  const messageId = parseInt(parts[1], 10);
-
-  return { chatId: chatId, messageId: messageId };
-}
