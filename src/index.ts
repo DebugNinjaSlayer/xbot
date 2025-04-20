@@ -32,7 +32,6 @@ bot.on(message("photo"), async (ctx) => {
     await ctx.reply("No image found");
     return;
   }
-  let imageUrl = await ctx.telegram.getFileLink(imageId as string);
   const caption = ctx.message.caption ?? "";
   const communityId = caption.startsWith("@")
     ? process.env.TWITTER_COMMUNITY_ID
@@ -43,7 +42,7 @@ bot.on(message("photo"), async (ctx) => {
     await putKv(
       key,
       JSON.stringify({
-        imageUrl,
+        imageId,
         caption: caption.startsWith("@") ? caption.split("@")[1] : caption,
         communityId,
       }),
@@ -105,7 +104,8 @@ cron.schedule(
           let finalCommunityId: string | undefined;
           for (const key of keys) {
             const kv = await getKv(key);
-            const { imageUrl, caption, communityId } = JSON.parse(kv.value);
+            const { imageId, caption, communityId } = JSON.parse(kv.value);
+            let imageUrl = await bot.telegram.getFileLink(imageId as string);
             imageUrls.push(new URL(imageUrl));
             if (!finalCaption) {
               finalCaption = caption;
@@ -120,7 +120,8 @@ cron.schedule(
           );
         } else {
           kvNeedToBeCleaned.push(key);
-          const { imageUrl, caption, communityId } = JSON.parse(value);
+          const { imageId, caption, communityId } = JSON.parse(value);
+          let imageUrl = await bot.telegram.getFileLink(imageId as string);
           await tweetImages([new URL(imageUrl)], caption, communityId);
           console.log(`Tweeted and deleted kv: ${caption}`);
         }
@@ -151,7 +152,7 @@ cron.schedule(
           }
         }
       }
-    }, delay);
+    }, 1);
     console.log(
       `Scheduled tweet at ${new Date(Date.now() + delay).toLocaleString()}`
     );
