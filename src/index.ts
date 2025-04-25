@@ -84,7 +84,7 @@ app.listen(3000, () => {
 cron.schedule(
   process.env.CRON_SCHEDULE ?? "0 8-22/2 * * *",
   async () => {
-    const delay = Math.floor(Math.random() * 1000 * 60 * 90) + 1; // 1-90 minutes
+    const delay = Math.floor(Math.random() * 1000 * 60 * 30) + 1; // 1-30 minutes
     const kvNeedToBeCleaned: string[] = [];
     lt.setTimeout(async function () {
       try {
@@ -152,7 +152,7 @@ cron.schedule(
           }
         }
       }
-    }, 1);
+    }, delay);
     console.log(
       `Scheduled tweet at ${new Date(Date.now() + delay).toLocaleString()}`
     );
