@@ -113,10 +113,10 @@ async function uploadMedia(imageUrl: URL) {
 
   console.log(`Uploading media with MIME type: ${mimeType}`);
 
-  const mediaId = await client.v1.uploadMedia(imageBuffer, {
-    mimeType: mimeType as EUploadMimeType,
+  const mediaId = await client.v2.uploadMedia(imageBuffer, {
+    media_type: mimeType as EUploadMimeType,
   });
-  console.log(`Media uploaded successfully (V1). Media ID: ${mediaId}`);
+  console.log(`Media uploaded successfully (V2). Media ID: ${mediaId}`);
   return mediaId;
 }
 
