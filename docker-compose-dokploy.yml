@@ -1,6 +1,6 @@
 services:
   xbot:
-    image: ghcr.io/debugninjaslayer/xbot:v0.0.2.2025-04-25-16-21-44
+    image: ghcr.io/debugninjaslayer/xbot:v0.0.2.2025-05-02-13-46-01
     ports:
       - "${PORT:-13000}:3000"
     environment:
