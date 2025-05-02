@@ -104,7 +104,8 @@ async function uploadMedia(imageUrl: URL) {
     console.log(`Inferred MIME type from extension: ${mimeType}`);
   }
 
-  if (!mimeType) {
+  // check if mimeType one of EUploadMimeType
+  if (!Object.values(EUploadMimeType).includes(mimeType as EUploadMimeType)) {
     throw new Error(
       `Failed to determine a supported MIME type. Last attempt: ${mimeType}`
     );
@@ -114,7 +115,6 @@ async function uploadMedia(imageUrl: URL) {
 
   const mediaId = await client.v1.uploadMedia(imageBuffer, {
     mimeType: mimeType as EUploadMimeType,
-    type: "jpg", // TODO: make this dynamic
   });
   console.log(`Media uploaded successfully (V1). Media ID: ${mediaId}`);
   return mediaId;
