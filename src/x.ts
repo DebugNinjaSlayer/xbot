@@ -35,7 +35,7 @@ async function tweet(payload: SendTweetV2Params) {
   return await client.v2.tweet(payload);
 }
 
-async function uploadImagesAndTweet(
+export async function uploadImagesAndTweet(
   imageUrls: URL[],
   tweetText: string,
   communityId?: string

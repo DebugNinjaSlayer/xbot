@@ -65,9 +65,28 @@ export async function deleteKv(key: string) {
   );
 }
 
+// 3dm-1748663904592-368588585-0-80
+export function parse3DMKey(key: string): {
+  groupId: string;
+  chatId: string;
+  index: string;
+  total: string;
+} | null {
+  const parts = key.split("-");
+  if (parts.length === 5) {
+    return {
+      groupId: parts[0],
+      chatId: parts[1],
+      index: parts[2],
+      total: parts[3],
+    };
+  }
+  return null;
+}
+
 export function parseKey(key: string): {
   chatId: string;
-  messageId: string;
+  messageId?: string;
   groupId?: string;
 } {
   const parts = key.split("-");
@@ -84,5 +103,7 @@ export function parseKey(key: string): {
       messageId: parts[2],
     };
   }
-  throw new Error("Invalid key");
+  return {
+    chatId: parts[0],
+  };
 }
