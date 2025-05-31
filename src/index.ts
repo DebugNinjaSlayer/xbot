@@ -37,12 +37,7 @@ bot.on(message("animation"), async (ctx) => {
   const messageId = ctx.message.message_id;
   const chatId = ctx.chat.id;
   const groupId = ctx.message.media_group_id;
-  let key: string;
-  if (groupId) {
-    key = `${ctx.chat.id}-${groupId}-${ctx.message.message_id}`;
-  } else {
-    key = `${ctx.chat.id}-${ctx.message.message_id}`;
-  }
+  const key = constructKey(groupId, messageId, chatId);
   await saveToKV(
     ctx,
     key,
@@ -64,14 +59,6 @@ bot.on(message("animation"), async (ctx) => {
 });
 
 bot.on(message("photo"), async (ctx) => {
-  const groupId = ctx.message.media_group_id;
-  let key: string;
-  if (groupId) {
-    key = `${ctx.chat.id}-${groupId}-${ctx.message.message_id}`;
-  } else {
-    key = `${ctx.chat.id}-${ctx.message.message_id}`;
-  }
-
   const photo = ctx.message.photo[ctx.message.photo.length - 1];
   let imageId = photo.file_id;
   if (!imageId) {
@@ -84,6 +71,8 @@ bot.on(message("photo"), async (ctx) => {
     : undefined;
   const messageId = ctx.message.message_id;
   const chatId = ctx.chat.id;
+  const groupId = ctx.message.media_group_id;
+  const key = constructKey(groupId, messageId, chatId);
   await saveToKV(
     ctx,
     key,
@@ -243,4 +232,15 @@ async function saveToKV(
     console.error(error);
     await onError(ctx);
   }
+}
+
+function constructKey(
+  groupId: string | undefined,
+  messageId: number,
+  chatId: number
+) {
+  if (groupId) {
+    return `${chatId}-${groupId}-${messageId}`;
+  }
+  return `${chatId}-${messageId}`;
 }
