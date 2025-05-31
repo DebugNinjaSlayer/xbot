@@ -17,6 +17,52 @@ import app from "./routes";
 import { tweetImages, tweetText } from "./x";
 const bot = new Telegraf<Context>(process.env.BOT_TOKEN as string);
 
+bot.on(message("animation"), async (ctx) => {
+  const animation = ctx.message.animation;
+  if (!animation) {
+    await ctx.reply("No animation found");
+    return;
+  }
+
+  const document = ctx.message.document;
+  let animationId = document.file_id;
+  if (!animationId) {
+    await ctx.reply("No animation found");
+    return;
+  }
+  const caption = ctx.message.caption ?? "";
+  const communityId = caption.startsWith("@")
+    ? process.env.TWITTER_COMMUNITY_ID
+    : undefined;
+  const messageId = ctx.message.message_id;
+  const chatId = ctx.chat.id;
+  const groupId = ctx.message.media_group_id;
+  let key: string;
+  if (groupId) {
+    key = `${ctx.chat.id}-${groupId}-${ctx.message.message_id}`;
+  } else {
+    key = `${ctx.chat.id}-${ctx.message.message_id}`;
+  }
+  await saveToKV(
+    ctx,
+    key,
+    animationId,
+    caption,
+    communityId,
+    chatId,
+    messageId,
+    groupId,
+    async (ctx, groupId) => {
+      await ctx.reply(
+        `Saved animation to kv, with groupId ${groupId}, caption ${caption}`
+      );
+    },
+    async (ctx) => {
+      await ctx.reply("Error saving animation to kv");
+    }
+  );
+});
+
 bot.on(message("photo"), async (ctx) => {
   const groupId = ctx.message.media_group_id;
   let key: string;
@@ -38,25 +84,24 @@ bot.on(message("photo"), async (ctx) => {
     : undefined;
   const messageId = ctx.message.message_id;
   const chatId = ctx.chat.id;
-  try {
-    await putKv(
-      key,
-      JSON.stringify({
-        imageId,
-        caption: caption.startsWith("@") ? caption.split("@")[1] : caption,
-        communityId,
-      }),
-      JSON.stringify({ chatId, messageId, groupId })
-    );
-    if (groupId) {
-      await ctx.reply(`Saved to kv, with groupId ${groupId}`);
-    } else {
-      await ctx.reply("Saved to kv");
+  await saveToKV(
+    ctx,
+    key,
+    imageId,
+    caption,
+    communityId,
+    chatId,
+    messageId,
+    groupId,
+    async (ctx, groupId) => {
+      await ctx.reply(
+        `Saved image to kv, with groupId ${groupId}, caption ${caption}`
+      );
+    },
+    async (ctx) => {
+      await ctx.reply("Error saving image to kv");
     }
-  } catch (error) {
-    console.error(error);
-    await ctx.reply("Error saving to kv");
-  }
+  );
 });
 
 bot.on(message("text"), async (ctx) => {
@@ -169,3 +214,33 @@ cron.schedule(
 // Enable graceful stop
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
+
+// TODO: imageId should migrate to mediaId
+async function saveToKV(
+  ctx: Context,
+  key: string,
+  imageId: string,
+  caption: string,
+  communityId: string | undefined,
+  chatId: number,
+  messageId: number,
+  groupId: string | undefined,
+  onSuccess: (ctx: Context, groupId?: string) => Promise<void>,
+  onError: (ctx: Context) => Promise<void>
+) {
+  try {
+    await putKv(
+      key,
+      JSON.stringify({
+        imageId,
+        caption: caption.startsWith("@") ? caption.split("@")[1] : caption,
+        communityId,
+      }),
+      JSON.stringify({ chatId, messageId, groupId })
+    );
+    await onSuccess(ctx, groupId);
+  } catch (error) {
+    console.error(error);
+    await onError(ctx);
+  }
+}
