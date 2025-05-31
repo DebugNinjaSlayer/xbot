@@ -5,6 +5,7 @@ import * as lt from "long-timeout";
 import cron from "node-cron";
 import { Context, Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
+import { parse3dmUrl } from "./3dm-parser";
 import {
   deleteKv,
   getKv,
@@ -14,7 +15,7 @@ import {
   putKv,
 } from "./kv";
 import app from "./routes";
-import { tweetImages } from "./x";
+import { tweetImages, uploadImagesAndTweet } from "./x";
 const bot = new Telegraf<Context>(process.env.BOT_TOKEN as string);
 
 bot.on(message("animation"), async (ctx) => {
@@ -100,6 +101,34 @@ bot.on(message("text"), async (ctx) => {
     return;
   }
   if (msg.startsWith("https://www.3dmgame.com/bagua")) {
+    const result = await parse3dmUrl(msg);
+    const now = new Date();
+    const groupId = now.getTime().toString();
+    for (let i = 0; i < result.results.length; i++) {
+      const item = result.results[i];
+      const key = `3dm-${groupId}-${ctx.chat.id}-${i}-${result.results.length}`;
+      await saveToKV(
+        ctx,
+        key,
+        item.mediaUrl,
+        item.caption,
+        undefined,
+        ctx.chat.id,
+        undefined,
+        groupId,
+        async (ctx, groupId) => {
+          // do nothing
+        },
+        async (ctx) => {
+          await ctx.reply(
+            `Error saving 3dm image to kv, key: ${key}, mediaUrl: ${item.mediaUrl}, caption: ${item.caption}`
+          );
+        }
+      );
+    }
+    await ctx.reply(
+      `Saved ${result.results.length} 3dm images to kv, groupId: ${groupId}`
+    );
   }
 });
 
@@ -125,51 +154,63 @@ cron.schedule(
           return;
         }
         const { value, key } = kv;
-        // check if key match ${ctx.chat.id}-${groupId}-${ctx.message.message_id} or ${ctx.chat.id}-${ctx.message.message_id}
-        const { chatId, groupId } = parseKey(key);
-        if (groupId) {
-          const keys = await listKeysWithPrefix(`${chatId}-${groupId}`);
-          kvNeedToBeCleaned.push(...keys);
+        if (key.startsWith("3dm-")) {
           const imageUrls = [];
-          let finalCaption = "";
-          let finalCommunityId: string | undefined;
-          for (const key of keys) {
-            const kv = await getKv(key);
-            const { imageId, caption, communityId } = JSON.parse(kv.value);
-            let imageUrl = await bot.telegram.getFileLink(imageId as string);
-            imageUrls.push(new URL(imageUrl));
-            if (!finalCaption) {
-              finalCaption = caption;
-            }
-            if (!finalCommunityId) {
-              finalCommunityId = communityId;
-            }
-          }
-          await tweetImages(imageUrls, finalCaption, finalCommunityId);
-          console.log(
-            `Tweeted and deleted kv with multiple images: ${finalCaption}`
-          );
-        } else {
+          const kv = await getKv(key);
+          const { imageId, caption } = JSON.parse(kv.value);
+          imageUrls.push(new URL(imageId)); // for 3dm, imageId is the url
+          await uploadImagesAndTweet(imageUrls, caption);
           kvNeedToBeCleaned.push(key);
-          const { imageId, caption, communityId } = JSON.parse(value);
-          let imageUrl = await bot.telegram.getFileLink(imageId as string);
-          await tweetImages([new URL(imageUrl)], caption, communityId);
-          console.log(`Tweeted and deleted kv: ${caption}`);
+        } else {
+          // check if key match ${ctx.chat.id}-${groupId}-${ctx.message.message_id} or ${ctx.chat.id}-${ctx.message.message_id}
+          const { chatId, groupId } = parseKey(key);
+          if (groupId) {
+            const keys = await listKeysWithPrefix(`${chatId}-${groupId}`);
+            kvNeedToBeCleaned.push(...keys);
+            const imageUrls = [];
+            let finalCaption = "";
+            let finalCommunityId: string | undefined;
+            for (const key of keys) {
+              const kv = await getKv(key);
+              const { imageId, caption, communityId } = JSON.parse(kv.value);
+              let imageUrl = await bot.telegram.getFileLink(imageId as string);
+              imageUrls.push(new URL(imageUrl));
+              if (!finalCaption) {
+                finalCaption = caption;
+              }
+              if (!finalCommunityId) {
+                finalCommunityId = communityId;
+              }
+            }
+            await tweetImages(imageUrls, finalCaption, finalCommunityId);
+            console.log(
+              `Tweeted and deleted kv with multiple images: ${finalCaption}`
+            );
+          } else {
+            kvNeedToBeCleaned.push(key);
+            const { imageId, caption, communityId } = JSON.parse(value);
+            let imageUrl = await bot.telegram.getFileLink(imageId as string);
+            await tweetImages([new URL(imageUrl)], caption, communityId);
+            console.log(`Tweeted and deleted kv: ${caption}`);
+          }
         }
       } catch (error) {
         console.error(error);
         if (kvNeedToBeCleaned.length > 0) {
-          const { chatId, messageId } = parseKey(kvNeedToBeCleaned[0]);
-          if (chatId && messageId) {
-            await bot.telegram.sendMessage(
-              chatId,
-              `failed with key ${kvNeedToBeCleaned[0]}, will delete it in case of blocking other tasks`,
-              {
-                reply_parameters: {
-                  message_id: parseInt(messageId, 10),
-                },
-              }
-            );
+          if (kvNeedToBeCleaned[0].startsWith("3dm-")) {
+          } else {
+            const { chatId, messageId } = parseKey(kvNeedToBeCleaned[0]);
+            if (chatId && messageId) {
+              await bot.telegram.sendMessage(
+                chatId,
+                `failed with key ${kvNeedToBeCleaned[0]}, will delete it in case of blocking other tasks`,
+                {
+                  reply_parameters: {
+                    message_id: parseInt(messageId, 10),
+                  },
+                }
+              );
+            }
           }
         }
       } finally {
@@ -207,7 +248,7 @@ async function saveToKV(
   caption: string,
   communityId: string | undefined,
   chatId: number,
-  messageId: number,
+  messageId: number | undefined,
   groupId: string | undefined,
   onSuccess: (ctx: Context, groupId?: string) => Promise<void>,
   onError: (ctx: Context) => Promise<void>
