@@ -14,7 +14,7 @@ import {
   putKv,
 } from "./kv";
 import app from "./routes";
-import { tweetImages, tweetText } from "./x";
+import { tweetImages } from "./x";
 const bot = new Telegraf<Context>(process.env.BOT_TOKEN as string);
 
 bot.on(message("animation"), async (ctx) => {
@@ -99,12 +99,7 @@ bot.on(message("text"), async (ctx) => {
     await ctx.reply("Hello! I'm a bot that can tweet images and text.");
     return;
   }
-  try {
-    await tweetText(msg);
-    await ctx.reply(`Tweeted text: ${msg}`);
-  } catch (error) {
-    console.error(error);
-    await ctx.reply("Error tweeting text");
+  if (msg.startsWith("https://www.3dmgame.com/bagua")) {
   }
 });
 

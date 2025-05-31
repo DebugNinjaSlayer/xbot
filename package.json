@@ -14,7 +14,8 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "axios": "^1.8.4",
+    "axios": "^1.9.0",
+    "cheerio": "^1.0.0",
     "cloudflare": "^4.2.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
@@ -30,6 +31,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts"
+    "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts",
+    "test:3dm": "ts-node src/3dm-parser.ts"
   }
 }
