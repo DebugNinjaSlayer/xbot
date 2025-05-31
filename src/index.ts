@@ -8,6 +8,7 @@ import { message } from "telegraf/filters";
 import { parse3dmUrl } from "./3dm-parser";
 import { config } from "./config";
 import {
+  deleteKv,
   getKv,
   getRandomKv,
   listKvWithPrefix as listKeysWithPrefix,
@@ -162,6 +163,14 @@ cron.schedule(
         } else {
           await handleRegularImage(key, value, kvNeedToBeCleaned);
         }
+        try {
+          for (const key of kvNeedToBeCleaned) {
+            await deleteKv(key);
+            console.log(`Deleted kv: ${key}`);
+          }
+        } catch (error) {
+          console.error(`Error deleting kv: ${error}`);
+        }
       });
     }, delay);
 
@@ -231,7 +240,6 @@ async function handleSingleImage(
   const { imageId, caption, communityId } = JSON.parse(value);
   let imageUrl = await bot.telegram.getFileLink(imageId as string);
   await tweetImages([new URL(imageUrl)], caption, communityId);
-  console.log(`Tweeted and deleted kv: ${caption}`);
 }
 
 // Enable graceful stop
