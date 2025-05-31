@@ -9,13 +9,40 @@ interface ParseResult {
   nextPage: string | null;
 }
 
-export async function parse3dmUrl(url: string): Promise<ParseResult> {
-  const response = await axios.get(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    },
-  });
+interface PageInfo {
+  currentPage: number;
+  totalPages: number;
+  nextPageUrl: string | null;
+}
+
+function parsePageInfo($: cheerio.CheerioAPI): PageInfo {
+  const pagination = $(".pagination");
+  const currentPageLink = pagination.find("li.active a");
+  const currentPage = currentPageLink.length
+    ? parseInt(currentPageLink.attr("data-page") || "0")
+    : 0;
+
+  // Find the last page number
+  const lastPageLink = pagination.find("li:not(.prev):not(.next) a").last();
+  const totalPages = lastPageLink.length
+    ? parseInt(lastPageLink.attr("data-page") || "0") + 1
+    : 1;
+
+  // Get next page URL if exists
+  const nextPageLink = pagination.find("li.next a");
+  const nextPageUrl = nextPageLink.length
+    ? nextPageLink.attr("href") || null
+    : null;
+
+  return {
+    currentPage,
+    totalPages,
+    nextPageUrl,
+  };
+}
+
+async function parsePage(url: string): Promise<ParseResult> {
+  const response = await axios.get(url);
   if (response.status !== 200) {
     throw new Error("Failed to fetch page");
   }
@@ -47,13 +74,34 @@ export async function parse3dmUrl(url: string): Promise<ParseResult> {
     }
   });
 
-  const nextPage = null;
+  const pageInfo = parsePageInfo($);
   return {
     results,
-    nextPage,
+    nextPage: pageInfo.nextPageUrl,
   };
 }
 
+export async function parse3dmUrl(url: string): Promise<ParseResult> {
+  const allResults: { mediaUrl: string; caption: string }[] = [];
+  let currentUrl: string | null = url;
+  let pageCount = 0;
+
+  while (currentUrl) {
+    console.log(`Fetching page ${pageCount + 1}...`);
+    const result = await parsePage(currentUrl);
+    allResults.push(...result.results);
+    currentUrl = result.nextPage;
+    pageCount++;
+  }
+
+  console.log(`Completed fetching ${pageCount} pages`);
+  return {
+    results: allResults,
+    nextPage: null,
+  };
+}
+
+// Test function to run the parser
 async function testParser() {
   const url = process.argv[2];
   if (!url) {
@@ -66,8 +114,9 @@ async function testParser() {
 
   try {
     const result = await parse3dmUrl(url);
-    console.log("Parsing Results:");
+    console.log("\nParsing Results:");
     console.log("----------------");
+    console.log(`Total items found: ${result.results.length}`);
     result.results.forEach((item, index) => {
       console.log(`\nItem ${index + 1}:`);
       console.log(`Image URL: ${item.mediaUrl}`);
@@ -78,6 +127,7 @@ async function testParser() {
   }
 }
 
+// Run the test if this file is executed directly
 if (require.main === module) {
   testParser();
 }
