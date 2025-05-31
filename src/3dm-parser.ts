@@ -1,11 +1,15 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
+import { Element } from "domhandler";
+
+// Types
+interface MediaItem {
+  mediaUrl: string;
+  caption: string;
+}
 
 interface ParseResult {
-  results: {
-    mediaUrl: string;
-    caption: string;
-  }[];
+  results: MediaItem[];
   nextPage: string | null;
 }
 
@@ -15,74 +19,109 @@ interface PageInfo {
   nextPageUrl: string | null;
 }
 
+// Constants
+const SELECTORS = {
+  PAGINATION: ".pagination",
+  ACTIVE_PAGE: "li.active a",
+  PAGE_LINKS: "li:not(.prev):not(.next) a",
+  NEXT_PAGE: "li.next a",
+  CONTENT_CONTAINER: ".news_warp_center",
+  IMAGE_CONTAINER: "p",
+  IMAGE: "img",
+  CAPTION: "p",
+} as const;
+
+// Utility functions
+function extractPageNumber(element: Element, $: cheerio.CheerioAPI): number {
+  return parseInt($(element).attr("data-page") || "0");
+}
+
+function extractAttribute(
+  element: Element,
+  $: cheerio.CheerioAPI,
+  attr: string
+): string | null {
+  return $(element).attr(attr) || null;
+}
+
+// Parser functions
 function parsePageInfo($: cheerio.CheerioAPI): PageInfo {
-  const pagination = $(".pagination");
-  const currentPageLink = pagination.find("li.active a");
+  const pagination = $(SELECTORS.PAGINATION);
+
+  // Get current page
+  const currentPageLink = pagination.find(SELECTORS.ACTIVE_PAGE);
   const currentPage = currentPageLink.length
-    ? parseInt(currentPageLink.attr("data-page") || "0")
+    ? extractPageNumber(currentPageLink[0], $)
     : 0;
 
-  // Find the last page number
-  const lastPageLink = pagination.find("li:not(.prev):not(.next) a").last();
+  // Get total pages
+  const lastPageLink = pagination.find(SELECTORS.PAGE_LINKS).last();
   const totalPages = lastPageLink.length
-    ? parseInt(lastPageLink.attr("data-page") || "0") + 1
+    ? extractPageNumber(lastPageLink[0], $) + 1
     : 1;
 
-  // Get next page URL if exists
-  const nextPageLink = pagination.find("li.next a");
+  // Get next page URL
+  const nextPageLink = pagination.find(SELECTORS.NEXT_PAGE);
   const nextPageUrl = nextPageLink.length
-    ? nextPageLink.attr("href") || null
+    ? extractAttribute(nextPageLink[0], $, "href")
     : null;
 
-  return {
-    currentPage,
-    totalPages,
-    nextPageUrl,
-  };
+  return { currentPage, totalPages, nextPageUrl };
+}
+
+function extractMediaItems($: cheerio.CheerioAPI): MediaItem[] {
+  const results: MediaItem[] = [];
+
+  $(SELECTORS.CONTENT_CONTAINER)
+    .find(SELECTORS.IMAGE_CONTAINER)
+    .each((_, element) => {
+      const $p = $(element);
+      const $img = $p.find(SELECTORS.IMAGE);
+
+      if ($img.length > 0) {
+        const mediaUrl = extractAttribute($img[0], $, "src");
+        if (mediaUrl) {
+          const caption = extractCaption($p, $);
+          results.push({ mediaUrl, caption });
+        }
+      }
+    });
+
+  return results;
+}
+
+function extractCaption(
+  $currentP: cheerio.Cheerio<Element>,
+  $: cheerio.CheerioAPI
+): string {
+  const $nextP = $currentP.next(SELECTORS.CAPTION);
+  if ($nextP.length > 0 && $nextP.find(SELECTORS.IMAGE).length === 0) {
+    return $nextP.text().trim();
+  }
+  return "";
+}
+
+async function fetchPage(url: string): Promise<string> {
+  const response = await axios.get(url);
+  if (response.status !== 200) {
+    throw new Error(`Failed to fetch page: ${url}`);
+  }
+  return response.data;
 }
 
 async function parsePage(url: string): Promise<ParseResult> {
-  const response = await axios.get(url);
-  if (response.status !== 200) {
-    throw new Error("Failed to fetch page");
-  }
-  const html = response.data;
+  const html = await fetchPage(url);
   const $ = cheerio.load(html);
 
-  const results: { mediaUrl: string; caption: string }[] = [];
-
-  // Find all img elements within p tags
-  $(".news_warp_center p").each((_, element) => {
-    const $p = $(element);
-    const $img = $p.find("img");
-
-    if ($img.length > 0) {
-      const mediaUrl = $img.attr("src");
-      if (mediaUrl) {
-        // Look for the next p tag that contains text (not just an img)
-        let caption = "";
-        const $nextP = $p.next("p");
-        if ($nextP.length > 0 && $nextP.find("img").length === 0) {
-          caption = $nextP.text().trim();
-        }
-
-        results.push({
-          mediaUrl,
-          caption,
-        });
-      }
-    }
-  });
-
-  const pageInfo = parsePageInfo($);
   return {
-    results,
-    nextPage: pageInfo.nextPageUrl,
+    results: extractMediaItems($),
+    nextPage: parsePageInfo($).nextPageUrl,
   };
 }
 
+// Main parser function
 export async function parse3dmUrl(url: string): Promise<ParseResult> {
-  const allResults: { mediaUrl: string; caption: string }[] = [];
+  const allResults: MediaItem[] = [];
   let currentUrl: string | null = url;
   let pageCount = 0;
 
@@ -101,7 +140,7 @@ export async function parse3dmUrl(url: string): Promise<ParseResult> {
   };
 }
 
-// Test function to run the parser
+// CLI interface
 async function testParser() {
   const url = process.argv[2];
   if (!url) {
@@ -114,17 +153,22 @@ async function testParser() {
 
   try {
     const result = await parse3dmUrl(url);
-    console.log("\nParsing Results:");
-    console.log("----------------");
-    console.log(`Total items found: ${result.results.length}`);
-    result.results.forEach((item, index) => {
-      console.log(`\nItem ${index + 1}:`);
-      console.log(`Image URL: ${item.mediaUrl}`);
-      console.log(`Caption: ${item.caption || "(no caption)"}`);
-    });
+    displayResults(result);
   } catch (error) {
     console.error("Error parsing URL:", error);
   }
+}
+
+function displayResults(result: ParseResult): void {
+  console.log("\nParsing Results:");
+  console.log("----------------");
+  console.log(`Total items found: ${result.results.length}`);
+
+  result.results.forEach((item, index) => {
+    console.log(`\nItem ${index + 1}:`);
+    console.log(`Image URL: ${item.mediaUrl}`);
+    console.log(`Caption: ${item.caption || "(no caption)"}`);
+  });
 }
 
 // Run the test if this file is executed directly
