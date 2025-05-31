@@ -86,7 +86,7 @@ export function parse3DMKey(key: string): {
 
 export function parseKey(key: string): {
   chatId: string;
-  messageId: string;
+  messageId?: string;
   groupId?: string;
 } {
   const parts = key.split("-");
@@ -103,5 +103,7 @@ export function parseKey(key: string): {
       messageId: parts[2],
     };
   }
-  throw new Error("Invalid key");
+  return {
+    chatId: parts[0],
+  };
 }
