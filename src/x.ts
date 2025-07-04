@@ -2,6 +2,7 @@ import axios from "axios";
 import { EUploadMimeType, SendTweetV2Params, TwitterApi } from "twitter-api-v2";
 
 import { loadEsm } from "load-esm";
+import { ImageFileSizeError } from "./utils/error-handler";
 
 const client = new TwitterApi({
   appKey: process.env.TWITTER_APP_KEY as string,
@@ -75,6 +76,13 @@ export async function uploadImagesAndTweet(
 }
 
 async function uploadMedia(imageUrl: URL) {
+  const fileSizeValid = await isContentLengthValid(imageUrl, 14_680_064);
+  if (!fileSizeValid) {
+    throw new ImageFileSizeError(
+      `Image file size is too large. ${imageUrl.href}`
+    );
+  }
+
   const response = await axios.get(imageUrl.href, {
     responseType: "arraybuffer",
   });
@@ -118,6 +126,11 @@ async function uploadMedia(imageUrl: URL) {
   });
   console.log(`Media uploaded successfully (V2). Media ID: ${mediaId}`);
   return mediaId;
+}
+
+async function isContentLengthValid(imageUrl: URL, limit: number) {
+  const response = await axios.head(imageUrl.href);
+  return response.headers["content-length"] <= limit;
 }
 
 function convertToStringArray(

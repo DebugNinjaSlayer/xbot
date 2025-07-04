@@ -17,7 +17,7 @@ import {
 } from "./kv";
 import app from "./routes";
 import { KVData, KVMetadata, SaveToKVConfig } from "./types";
-import { withErrorHandling } from "./utils/error-handler";
+import { ImageFileSizeError, withErrorHandling } from "./utils/error-handler";
 import { tweetImages, uploadImagesAndTweet } from "./x";
 
 const bot = new Telegraf<Context>(config.botToken, {
@@ -160,18 +160,28 @@ cron.schedule(
         }
 
         const { value, key } = kv;
-        if (key.startsWith("3dm-")) {
-          await handle3DMImage(key, kvNeedToBeCleaned);
-        } else {
-          await handleRegularImage(key, value, kvNeedToBeCleaned);
-        }
         try {
+          if (key.startsWith("3dm-")) {
+            await handle3DMImage(key, kvNeedToBeCleaned);
+          } else {
+            await handleRegularImage(key, value, kvNeedToBeCleaned);
+          }
           for (const key of kvNeedToBeCleaned) {
             await deleteKv(key);
             console.log(`Deleted kv: ${key}`);
           }
         } catch (error) {
           console.error(`Error deleting kv: ${error}`);
+          if (error instanceof ImageFileSizeError) {
+            try {
+              await deleteKv(key);
+              console.log(`Deleted kv with image file size error: ${key}`);
+            } catch (error) {
+              console.error(
+                `Error deleting kv with image file size error: ${error}`
+              );
+            }
+          }
         }
       });
     }, delay);

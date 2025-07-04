@@ -12,6 +12,13 @@ export class AppError extends Error {
   }
 }
 
+export class ImageFileSizeError extends Error {
+  constructor(message: string, public readonly originalError?: Error) {
+    super(message);
+    this.name = "ImageFileSizeError";
+  }
+}
+
 export async function handleError(
   error: Error,
   ctx?: Context,
