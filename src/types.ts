@@ -1,3 +1,5 @@
+import { Context } from "telegraf";
+
 export interface KVData {
   imageId: string;
   caption: string;
@@ -19,8 +21,8 @@ export interface SaveToKVConfig {
   chatId: number;
   messageId?: number;
   groupId?: string;
-  onSuccess: (ctx: any, groupId?: string) => Promise<void>;
-  onError: (ctx: any) => Promise<void>;
+  onSuccess: (ctx: Context, groupId?: string) => Promise<void>;
+  onError: (ctx: Context) => Promise<void>;
 }
 
 export interface Parsed3DMResult {

@@ -44,17 +44,22 @@ export async function handleError(
 
 export async function withErrorHandling<T>(
   operation: () => Promise<T>,
+  onError?: (ctx: Context) => Promise<void>,
   ctx?: Context,
   key?: string
 ): Promise<T | undefined> {
   try {
     return await operation();
   } catch (error) {
-    await handleError(
-      error instanceof Error ? error : new Error(String(error)),
-      ctx,
-      key
-    );
+    if (onError && ctx) {
+      await onError(ctx);
+    } else {
+      await handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        ctx,
+        key
+      );
+    }
     return undefined;
   }
 }

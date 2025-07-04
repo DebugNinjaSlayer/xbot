@@ -20,7 +20,9 @@ import { KVData, KVMetadata, SaveToKVConfig } from "./types";
 import { withErrorHandling } from "./utils/error-handler";
 import { tweetImages, uploadImagesAndTweet } from "./x";
 
-const bot = new Telegraf<Context>(config.botToken);
+const bot = new Telegraf<Context>(config.botToken, {
+  handlerTimeout: 60_000 * 10,
+});
 
 bot.on(message("animation"), async (ctx) => {
   const animation = ctx.message.animation;
@@ -271,6 +273,7 @@ async function saveToKV({
       await putKv(key, JSON.stringify(data), JSON.stringify(metadata));
       await onSuccess(ctx, groupId);
     },
+    onError,
     ctx,
     key
   );
