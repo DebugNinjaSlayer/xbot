@@ -56,8 +56,17 @@ export async function uploadImagesAndTweet(
       text: tweetText,
       community_id: communityId,
     });
-    console.log("Tweet posted successfully (V1):", newTweet.data.id);
-
+    console.log(
+      `Tweet posted successfully (V2): ${newTweet.data.id}, communityId: ${communityId}`
+    );
+    if (communityId) {
+      await client.v2.retweet(
+        process.env.TWITTER_USER_ID as string,
+        newTweet.data.id
+      );
+      console.log(`Tweet reposted to profile, tweetId: ${newTweet.data.id}`);
+    }
+    
     return newTweet;
   } catch (error: any) {
     console.error("Error in uploadImageAndTweet:");
