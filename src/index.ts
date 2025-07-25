@@ -162,24 +162,25 @@ cron.schedule(
         const { value, key } = kv;
         try {
           if (key.startsWith("3dm-")) {
-            await handle3DMImage(key, kvNeedToBeCleaned);
+            kvNeedToBeCleaned.push(key);
+            await handle3DMImage(key);
           } else {
             await handleRegularImage(key, value, kvNeedToBeCleaned);
           }
-          for (const key of kvNeedToBeCleaned) {
-            await deleteKv(key);
-            console.log(`Deleted kv: ${key}`);
-          }
         } catch (error) {
-          console.error(`Error deleting kv: ${error}`);
+          console.error(`Error handling kv: ${error}, key: ${key}`);
           if (error instanceof ImageFileSizeError) {
+            console.error(
+              `Error handling kv with image file size error: ${error}, key: ${key}`
+            );
+          }
+        } finally {
+          for (const k of kvNeedToBeCleaned) {
             try {
-              await deleteKv(key);
-              console.log(`Deleted kv with image file size error: ${key}`);
+              await deleteKv(k);
+              console.log(`Deleted kv: ${k}`);
             } catch (error) {
-              console.error(
-                `Error deleting kv with image file size error: ${error}`
-              );
+              console.error(`Error deleting kv: ${error}, key: ${k}`);
             }
           }
         }
@@ -197,12 +198,11 @@ cron.schedule(
   }
 );
 
-async function handle3DMImage(key: string, kvNeedToBeCleaned: string[]) {
+async function handle3DMImage(key: string) {
   const kv = await getKv(key);
   const { imageId, caption } = JSON.parse(kv.value);
   const imageUrls = [new URL(imageId)];
   await uploadImagesAndTweet(imageUrls, caption);
-  kvNeedToBeCleaned.push(key);
 }
 
 async function handleRegularImage(
@@ -214,7 +214,8 @@ async function handleRegularImage(
   if (groupId) {
     await handleGroupedImages(chatId, groupId, kvNeedToBeCleaned);
   } else {
-    await handleSingleImage(key, value, kvNeedToBeCleaned);
+    kvNeedToBeCleaned.push(key);
+    await handleSingleImage(value);
   }
 }
 
@@ -243,12 +244,7 @@ async function handleGroupedImages(
   console.log(`Tweeted and deleted kv with multiple images: ${finalCaption}`);
 }
 
-async function handleSingleImage(
-  key: string,
-  value: string,
-  kvNeedToBeCleaned: string[]
-) {
-  kvNeedToBeCleaned.push(key);
+async function handleSingleImage(value: string) {
   const { imageId, caption, communityId } = JSON.parse(value);
   let imageUrl = await bot.telegram.getFileLink(imageId as string);
   await tweetImages([new URL(imageUrl)], caption, communityId);
