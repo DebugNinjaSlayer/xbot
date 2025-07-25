@@ -4,13 +4,16 @@ services:
     ports:
       - "${PORT:-13000}:3000"
     environment:
+      # Need to be set for the first setup, used to get the access token and secret
       - BOT_TOKEN=${BOT_TOKEN}
       - TWITTER_APP_KEY=${TWITTER_APP_KEY}
       - TWITTER_APP_SECRET=${TWITTER_APP_SECRET}
+      - CALLBACK_URL=${CALLBACK_URL}
+      # After the first setup, set the access token and secret to be able to tweet
       - TWITTER_ACCESS_TOKEN=${TWITTER_ACCESS_TOKEN}
       - TWITTER_ACCESS_SECRET=${TWITTER_ACCESS_SECRET}
       - TWITTER_COMMUNITY_ID=${TWITTER_COMMUNITY_ID}
-      - CALLBACK_URL=${CALLBACK_URL}
+      - TWITTER_USER_ID=${TWITTER_USER_ID}
       - CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID}
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
       - CLOUDFLARE_KV_NAMESPACE_ID=${CLOUDFLARE_KV_NAMESPACE_ID}
