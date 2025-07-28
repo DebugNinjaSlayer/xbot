@@ -18,6 +18,7 @@ services:
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
       - CLOUDFLARE_KV_NAMESPACE_ID=${CLOUDFLARE_KV_NAMESPACE_ID}
       - CRON_SCHEDULE=${CRON_SCHEDULE}
+      - TZ=${TZ}
     networks:
       - dokploy-network
 
