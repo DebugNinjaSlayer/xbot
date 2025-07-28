@@ -24,6 +24,8 @@ export class SchedulerService {
       config.cronSchedule,
       async () => {
         const delay = config.delay;
+        const finalDelay =
+          delay ?? Math.floor(Math.random() * 1000 * 60 * 30) + 1;
         const kvNeedToBeCleaned: string[] = [];
 
         lt.setTimeout(async () => {
@@ -55,11 +57,11 @@ export class SchedulerService {
               await this.cleanupKvEntries(kvNeedToBeCleaned);
             }
           });
-        }, delay ?? Math.floor(Math.random() * 1000 * 60 * 30) + 1);
+        }, finalDelay);
 
         console.log(
           `Scheduled tweet at ${new Date(
-            Date.now() + (delay ?? 0)
+            Date.now() + finalDelay
           ).toLocaleString()}`
         );
       },
