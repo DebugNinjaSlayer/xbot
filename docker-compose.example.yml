@@ -18,4 +18,5 @@ services:
       - CLOUDFLARE_API_TOKEN=
       - CLOUDFLARE_KV_NAMESPACE_ID=
       - CRON_SCHEDULE=
+      - TWEET_ENABLED=
       - TZ=
