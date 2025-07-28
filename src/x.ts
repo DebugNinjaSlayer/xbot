@@ -3,6 +3,7 @@ import { EUploadMimeType, SendTweetV2Params, TwitterApi } from "twitter-api-v2";
 
 import { loadEsm } from "load-esm";
 import { ImageFileSizeError } from "./utils/error-handler";
+import { config } from "./config";
 
 const client = new TwitterApi({
   appKey: process.env.TWITTER_APP_KEY as string,
@@ -29,6 +30,10 @@ export async function tweetImages(
   tweetText: string,
   communityId?: string
 ) {
+  if (!config.tweetEnabled) {
+    console.log("Tweeting is disabled, skipping tweetImages");
+    return;
+  }
   await uploadImagesAndTweet(imageUrls, tweetText, communityId);
 }
 
@@ -36,7 +41,7 @@ async function tweet(payload: SendTweetV2Params) {
   return await client.v2.tweet(payload);
 }
 
-export async function uploadImagesAndTweet(
+async function uploadImagesAndTweet(
   imageUrls: URL[],
   tweetText: string,
   communityId?: string
@@ -66,7 +71,7 @@ export async function uploadImagesAndTweet(
       );
       console.log(`Tweet reposted to profile, tweetId: ${newTweet.data.id}`);
     }
-    
+
     return newTweet;
   } catch (error: any) {
     console.error("Error in uploadImageAndTweet:");

@@ -31,3 +31,23 @@ export interface Parsed3DMResult {
     caption: string;
   }>;
 }
+
+export interface MediaConfig {
+  ctx: Context;
+  mediaId: string;
+  caption: string;
+  messageId: number;
+  chatId: number;
+  groupId?: string;
+  mediaType: "photo" | "animation";
+}
+
+export interface Save3dmMediaConfig {
+  ctx: Context;
+  mediaUrl: string;
+  caption: string;
+  chatId: number;
+  groupId: string;
+  index: number;
+  total: number;
+}
